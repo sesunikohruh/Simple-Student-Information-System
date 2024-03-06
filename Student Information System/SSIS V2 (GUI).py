@@ -53,33 +53,18 @@ studentDatabase.column(5,width=70)
 studentDatabase.heading(6, text="Course Code")
 studentDatabase.column(6,width=100)
 
-# Predefined rows for CSV file
-predefined_rows = ["Last Name", "First Name", "Sex", "Year Level", "ID Number", "Course Code"] #code that adds the field names in csv file when the csv file is empty
+# ------------------------------------- F U N C T I O N S ------------------------------------------------ #
+
+studentDatabase_predefinedrows = ["Last Name", "First Name", "Gender", "Year Level", "ID Number", "Course Code"]
+
+# Read the CSV file and add the data to the treeview widget
 with open("StudentList.csv", "r") as student_file:
     reader = csv.reader(student_file)
-    if predefined_rows != next(reader):
-        with open("StudentList.csv", "w", newline="") as student_file:
-            writer = csv.writer(student_file)
-            writer.writerow(predefined_rows)
-
-# ------------------------------------- F U N C T I O N S ------------------------------------------------ #
-def loadStudentData():
-    # Read the CSV file and add the data to the treeview widget
-    with open("StudentList.csv", "r") as student_file:
-        reader = csv.reader(student_file)
-        headers = next(reader)
-        for row in reader:
-            studentDatabase.insert("", "end", values=row)
-loadStudentData()
-
-def updateTreeview():
-    for record in studentDatabase.get_children():
-        studentDatabase.delete(record)
-
-    with open("StudentList.csv","r") as student_file:
-        reader = csv.reader(student_file)
-        next(reader) #skips header
-        for row in reader:
+    if not studentDatabase_predefinedrows:  # Check if CSV file is empty
+        predefined_rows = ["Last Name", "First Name", "Gender", "Year Level", "ID Number", "Course Code"]
+        studentDatabase.insert("", "end", values=predefined_rows)  # Insert predefined rows to treeview
+    else:
+        for row in reader: 
             studentDatabase.insert("", "end", values=row)
 
 def home(): # function that leads the user to the main page / tab
@@ -135,12 +120,12 @@ def addStudentPage():
     def addStudent(): #this function adds the neccessary information of the student to a csv file by asking the user for input
         
         # Getting the Inputs
-        lastName = lastName_entry.get()
-        firstName = firstName_entry.get()
+        lastName = lastName_entry.get().capitalize()
+        firstName = firstName_entry.get().capitalize()
         sexualOrientation = sexualOrientation_combo.get()
         yearLevel = yearLevel_entry.get()
         idNum = idNum_entry.get()
-        courseCode = courseCode_entry.get()
+        courseCode = courseCode_combo.get()
 
         # Checks if any of the entry fields are blank or empty
         if not(lastName and firstName and sexualOrientation and yearLevel and idNum):
@@ -180,39 +165,22 @@ def addStudentPage():
             reader = csv.reader(student_file)
             students = [row for row in reader]
 
+        studentDatabase.insert("","end",values=(lastName, firstName, sexualOrientation, idNum, yearLevel, courseCode)) #displays the newly added student to treeview
+
         if [lastName,firstName,idNum,sexualOrientation,str(yearLevel),courseCode] not in students:
             with open("StudentList.csv", "a", newline='') as student_file:
                 writer = csv.writer(student_file)
                 writer.writerow([lastName,firstName,sexualOrientation,idNum,yearLevel,courseCode])
                 messagebox.showinfo("Student Added","Student added successfully!")
-                updateTreeview()
                 # Clears all the previous field inputs by the user after adding the student successfully
                 lastName_entry.delete(0, 'end')
                 firstName_entry.delete(0, 'end')
                 sexualOrientation_combo.set('')
-                yearLevel_entry.delete(0, 'end')
                 idNum_entry.delete(0, 'end')
-                courseCode_entry.delete(0, 'end')
+                yearLevel_entry.delete(0, 'end')
+                courseCode_combo.set('')
         else:
             messagebox.showinfo("Student already exists in the list. No duplicates allowed.")
-
-        # Validates the input format for ID Number
-        idNumFormat = r"\d{4}-\d{4}"
-        idNumLength = 9
-
-        while True:
-            try:
-                if re.match(idNumFormat,idNum) and len(idNum) == idNumLength and all(c.isdigit() or c == '-' for c in idNum):
-                    return idNum
-                else:
-                    messagebox.showerror("Invalid ID Number Format", "Oops! Enter a valid ID Number format (YYYY-NNNN, e.g. 2022 - 0001)")
-                    break
-            except ValueError:
-                messagebox.showerror("Invalid ID Number Format", "Oops! Enter a valid ID Number format (YYYY-NNNN, e.g. 2022 - 0001)")
-                break
-        pass
-            
-    updateTreeview()
 
     # ------------------------------------- E N T R I E S ---------------------------------------------------- #
 
@@ -249,7 +217,6 @@ def addStudentPage():
     # Read course codes from CourseList.csv
     with open("CourseList.csv", "r") as course_file:
         reader = csv.reader(course_file)
-        next(reader) # skips header
         courseCodes = [row[0] for row in reader]
 
     courseCode_combo = ttk.Combobox(courseCode_row,values=courseCodes,state="readonly")
@@ -293,21 +260,31 @@ def addStudentPage():
 def deleteStudent(): #this function enables the user to remove a selected student using its ID Number from the student list or database
 
     selectedStudent = studentDatabase.selection()
+    values = studentDatabase.item(selectedStudent)['values']
     if not selectedStudent: # this ensures that 
         messagebox.showerror("Error", "Please select a student to delete.")
         return
     
-    values = studentDatabase.item(selectedStudent,"values")
+    confirm = messagebox.askyesnocancel("Confiriming Deletion", "Are you sure you want to delete this student?")
+    if not confirm:
+        return
 
     studentDatabase.delete(selectedStudent) # this enables the user to delete a selected item or student from the student database treeview
 
     with open("StudentList.csv", "r") as student_file:
         reader = csv.reader(student_file)
-        rows = [row for row in reader if row != values]
+        students=list(reader)
+    
+    for student in students:
+        if student[:2]==values[:2]:
+            students.remove(student)
+            break
 
     with open("StudentList.csv", "w", newline='') as student_file:
         writer = csv.writer(student_file)
-        writer.writerows(rows)
+        for student in students:
+             writer.writerow(student)
+
 
     messagebox.showinfo("Student Deleted", "Student deleted successfully!")
 
@@ -327,7 +304,7 @@ def editStudent():
     editStudent_window.title("Edit Student")
     editStudent_window.geometry("300x280")
 
-    # --------------------------------- E N T R I E S ------------------------------------#
+    # --------------------------------- L A B E L S  &  E N T R I E S ------------------------------------#
     Label(editStudent_window, text="Last Name: ").grid(row=0, column=0, padx=5, pady=5)
     lastName= Entry(editStudent_window)
     lastName.insert(0, currentValues[0])
@@ -338,10 +315,10 @@ def editStudent():
     firstName.insert(0, currentValues[1])
     firstName.grid(row=1, column=1, padx=5, pady=5)
 
-    Label(editStudent_window, text="Sex: ").grid(row=2, column=0, padx=5, pady=5)
+    Label(editStudent_window,text="Sex: ").grid(row=2,column=0,padx=5,pady=5)
     sexualOrientation = ttk.Combobox(editStudent_window,values=["Male","Female"])
-    sexualOrientation.set(0, currentValues[2])
-    sexualOrientation.grid(row=2, column=1, padx=5, pady=5)
+    sexualOrientation.set(currentValues[2])
+    sexualOrientation.grid(row=2,column=1,padx=5,pady=5)
 
     Label(editStudent_window, text="Year Level: ").grid(row=3, column=0, padx=5, pady=5)
     yearLevel_entry = Entry(editStudent_window)
@@ -353,9 +330,15 @@ def editStudent():
     idNum_entry.insert(0, currentValues[4])
     idNum_entry.grid(row=4, column=1, padx=5, pady=5)
 
+    courseCodes=[]
+    with open('CourseList.csv','r') as course_file:
+        reader = csv.reader(course_file)
+        for row in reader:
+            courseCodes.append(row[0])
+
     Label(editStudent_window, text="Course Code: ").grid(row=5, column=0, padx=5, pady=5)
-    courseCode_entry = Entry(editStudent_window)
-    courseCode_entry.insert(0, currentValues[5])
+    courseCode_entry = ttk.Combobox(editStudent_window,values=courseCodes,state="readonly")
+    courseCode_entry.set(currentValues[5])
     courseCode_entry.grid(row=5, column=1, padx=5, pady=5)
 
     # -------------------------------- F U N C T I O N --------------------------------#
@@ -363,8 +346,8 @@ def editStudent():
 
         updatedDetails = [
 
-            lastName.get(),
-            firstName.get(),
+            lastName.get().capitalize(),
+            firstName.get().capitalize(),
             sexualOrientation.get(),
             yearLevel_entry.get(),
             idNum_entry.get(),
@@ -374,16 +357,11 @@ def editStudent():
 
         studentDatabase.item(selectedStudent,values=updatedDetails) # updates the student data in treeview
 
-        with open("StudentList.csv", "r") as file:
-            reader = csv.reader(file)
-            data = [row for row in reader]
-
-        index = studentDatabase.index(selectedStudent)
-        data[index] = updatedDetails
-
-        with open("StudentList.csv", "w", newline="") as file:
-            writer = csv.writer(file)
-            writer.writerows(data)
+        with open("StudentList.csv", "w", newline="") as student_file:
+            writer = csv.writer(student_file)
+            for child in studentDatabase.get_children():
+                values = studentDatabase.item(child, "values")
+                writer.writerow(values)
 
         messagebox.showinfo("Edit Student Success", "Student information updated successfully!")
         editStudent_window.destroy()
@@ -425,6 +403,25 @@ def editStudent():
     command=cancelChanges)
     cancelButton.grid(row=7, column=0, columnspan=2, padx=70, pady=2)
 
+    # Validates the course code input if it exists or not
+    with open('CourseList.csv', 'r') as course_file:
+        reader = csv.reader(course_file) #reads the CourseList.csv file
+        courses = [row[0] for row in reader]
+
+    if courseCode_entry.get() in courses: #checks whether user input of the student's course is found from the course list (valid)
+        print(f"Course Name: {courseCode_entry.get()}")
+        return
+    else: 
+        if courseCode_entry.get() == '': #if course input is empty
+            print('N/A')
+            return
+        else:
+            messagebox.showerror("Unvailable Course!",'Course Not Available! Please try again.')   
+            print ('Unenrolled')
+            return
+        
+
+############################################################3333
 def viewCoursesPage():
 
 # ------------ F R A M E S ------------------------------------------------ #
@@ -446,46 +443,205 @@ def viewCoursesPage():
 
     with open("CourseList.csv", "r") as course_file:
         reader = csv.reader(course_file)
-        next(reader) #skips the headers
         for row in reader:
             courseDatabase.insert("", "end", values=row)
 
     courseDatabase.pack(fill="both", expand=True)
 
 # ---------------------------- F U N C T I O N S ------------------------- #
-    #def addCourse():
+    def addCourse():
+
+        # ----------------- F U N C T I O N S ----------------------------- #
+        def saveCourse():
+
+            newCourseCode = addCourseCode.get().upper()
+            newCourseName = addCourseName.get().upper()
+
+            if not newCourseCode or not newCourseName:
+                messagebox.showerror("Error", "Please fill in both Course Code and Course Name fields.")
+                return
+            
+            with open("CourseList.csv", "a", newline="") as course_file: # writes the newly added course to the CourseList or CSV file
+                writer = csv.writer(course_file)
+                writer.writerow([newCourseCode,newCourseName])
+
+            courseDatabase.insert("", "end", values=(newCourseCode, newCourseName))
+            messagebox.showinfo("Success", "New Course Added Successfully!")
+
+            addCourse_window.destroy()
+
+
+        def cancelChanges():
+            addCourse_window.destroy()
+
+        # Pop-Up Window for Adding a new Course
+        addCourse_window = tk.Tk()
+        addCourse_window.resizable(False,False)
+        addCourse_window.title("Add New Course")
+        addCourse_window.geometry("300x160")
+        
+        # ----------------- L A B E L S  &  E N T R I E S ----------------- #
+        Label(addCourse_window, text="Add New Course Code: ").grid(row=0, column=0, padx=5, pady=5)
+        addCourseCode = Entry(addCourse_window)
+        addCourseCode.grid(row=0, column=1, padx=5, pady=5)
+        Label(addCourse_window, text="Add New Course Name: ").grid(row=1, column=0, padx=5, pady=5)
+        addCourseName = Entry(addCourse_window)
+        addCourseName.grid(row=1, column=1, padx=5, pady=5)
+
+        # ------------------------- B U T T O N S --------------------------- #
+        cancelButton = Button( # CANCEL Button (for Edit Student Window)
+        addCourse_window, 
+        background='RED',
+        foreground='WHITE',
+        activebackground='PINK',
+        activeforeground='BLACK',
+        highlightthickness=1,
+        width=15,
+        height=0,
+        border=1,
+        cursor='hand1',
+        text = "CANCEL",
+        font=('Arial', 12, 'bold'),
+        command=cancelChanges)
+        cancelButton.grid(row=7, column=0, columnspan=2, padx=70, pady=2)
+
+        saveButton = Button( # SAVE Button (for Edit Student Window)
+            addCourse_window, 
+            background='#0055D8',
+            foreground='WHITE',
+            activebackground='#30ECFF',
+            activeforeground='BLACK',
+            width=15,
+            height=0,
+            border=1,
+            cursor='hand1',
+            text = "SAVE",
+            font=('Arial', 12, 'bold'),
+            command=saveCourse)
+        saveButton.grid(row=6, column=0, columnspan=2, padx=70, pady=10)
+
+        courseDatabase.insert("","end",values=(addCourseCode,addCourseName)) #displays the newly added student to treeview
+
 
     def deleteCourse():
 
-        selectedCourse = courseDatabase.selection()
-        if not selectedCourse:
-            messagebox.showerror("Error", "Please select a course to delete.")
+       selectedCourse = courseDatabase.selection()
+
+       if not selectedCourse:
+           messagebox.showerror("Error", "Please select a student to delete.")
+           return
+       
+       confirm = messagebox.askyesnocancel("Confiriming Deletion", "Are you sure you want to delete this course")
+       if not confirm: 
             return
-        
-        courseDetails = courseDatabase.item(selectedCourse, "values")
+       
+       for selectedCourses in selectedCourse:
+           courses = courseDatabase.item(selectedCourse)['values']
 
-        courseDatabase.delete(selectedCourse) # deletes course from course database treeview
+           with open ('CourseList.csv',"r") as course_file:
+               courses = list(csv.reader(course_file))
+           
+           courses = [c for c in courses if c[:2] != courses[:2]]
+               
+           with open ("CourseList.csv","w",newline='') as course_file: # writes updated course list back to the file
+                writer = csv.writer(course_file)
+                writer.writerow(courses)
 
-        with open("CourseList.csv", "r") as course_file:
-            reader = csv.reader(course_file)
-            rows = [row for row in reader]
 
-        rows_to_write = []
-        for row in rows:
-            if row != courseDetails:
-                rows_to_write.append(row)
+           courseDatabase.delete(selectedCourse) # deletes a selected item or student from the student database treeview
 
-        with open("CourseList.csv", "w", newline="") as course_file:
-            writer = csv.writer(course_file)
-            writer.writerows(rows_to_write)
-
-        messagebox.showinfo("Course Deleted", "Course deleted successfully!")
+           messagebox.showinfo("Course Deleted", "Course deleted successfully!")
 
     viewCoursesFrame.pack()
     optionsFrame.destroy()
     databaseFrame.destroy() 
 
-    #def editCourse():
+    def editCourse():
+
+        selectedCourse = courseDatabase.selection()
+        if not selectedCourse:
+            messagebox.showerror("Error", "Please select a course to edit.")
+            return
+    
+        # Get the selected student's current information
+        currentCourseDetails = courseDatabase.item(selectedCourse, "values")
+
+        # Pop-Up Window for Editing Course Details
+        editCourse_window = tk.Tk()
+        editCourse_window.resizable(False,False)
+        editCourse_window.title("Edit Course")
+        editCourse_window.geometry("300x280")
+
+        # --------------------------------- L A B E L S  &  E N T R I E S ------------------------------------#
+        Label(editCourse_window, text="Course Code: ").grid(row=0, column=0, padx=5, pady=5)
+        courseCode= Entry(editCourse_window)
+        courseCode.insert(0, currentCourseDetails[0])
+        courseCode.grid(row=0, column=1, padx=5, pady=5)
+        
+        Label(editCourse_window, text="Course Name: ").grid(row=1, column=0, padx=5, pady=5)
+        courseName = Entry(editCourse_window)
+        courseName.insert(0, currentCourseDetails[1])
+        courseName.grid(row=1, column=1, padx=5, pady=5)
+
+        # -------------------------------- F U N C T I O N --------------------------------#
+        def saveCourseChanges():
+
+            updatedDetails = [
+
+                courseCode.get().upper(),
+                courseName.get().upper(),
+                
+            ]
+
+            courseDatabase.item(selectedCourse,values=updatedDetails) # updates the course data in treeview
+
+            with open("CourseList.csv", "w", newline="") as course_file:
+                writer = csv.writer(course_file)
+                for child in courseDatabase.get_children():
+                    values = courseDatabase.item(child, "values")
+                    writer.writerow(values)
+
+            messagebox.showinfo("Edit Student Success", "Student information updated successfully!")
+            editCourse_window.destroy()
+
+        def cancelChanges():
+
+             editCourse_window.destroy()
+
+        # ------------------------------- B U T T O N ----------------------------------- #
+        
+        saveButton = Button( # SAVE Button (for Edit Student Window)
+        editCourse_window, 
+        background='#0055D8',
+        foreground='WHITE',
+        activebackground='#30ECFF',
+        activeforeground='BLACK',
+        width=15,
+        height=0,
+        border=1,
+        cursor='hand1',
+        text = "SAVE",
+        font=('Arial', 12, 'bold'),
+        command=saveCourseChanges)
+        saveButton.grid(row=6, column=0, columnspan=2, padx=70, pady=10)
+
+        cancelButton = Button( # CANCEL Button (for Edit Student Window)
+        editCourse_window, 
+        background='RED',
+        foreground='WHITE',
+        activebackground='PINK',
+        activeforeground='BLACK',
+        highlightthickness=1,
+        width=15,
+        height=0,
+        border=1,
+        cursor='hand1',
+        text = "CANCEL",
+        font=('Arial', 12, 'bold'),
+        command=cancelChanges)
+        cancelButton.grid(row=7, column=0, columnspan=2, padx=70, pady=2)
+
+
     # ---------------------------- B U T T O N S ----------------------------- #
     
     addCourseButton = Button( # ADD Button to add a non-existing course to Course List
@@ -499,7 +655,8 @@ def viewCoursesPage():
         border=1,
         cursor='hand1',
         text = "ADD NEW COURSE",
-        font=('Arial', 12, 'bold'))
+        font=('Arial', 12, 'bold'),
+        command=addCourse)
     addCourseButton.pack(side=LEFT,padx=15)
 
     delCourseButton = Button( # DELETE Button to delete an existing course from Course List
@@ -528,7 +685,8 @@ def viewCoursesPage():
         border=1,
         cursor='hand1',
         text = "EDIT COURSE",
-        font=('Arial', 12, 'bold'))
+        font=('Arial', 12, 'bold'),
+        command=editCourse)
     editCourseButton.pack(side=LEFT,padx=15)
 
     homeButton = Button( # BACK Button
@@ -559,7 +717,7 @@ addButtonMain = Button( # ADD Button (for main page/tab)
     border=1,
     cursor='hand1',
     text = "ADD STUDENT",
-    font=('Arial', 14, 'bold'),
+    font=('Arial', 13, 'bold'),
     command=addStudentPage)
 addButtonMain.pack(pady=25)
 
@@ -575,9 +733,9 @@ delButton = Button( # DELETE Button
     border=1,
     cursor='hand1',
     text = "DELETE STUDENT",
-    font=('Arial', 14, 'bold'),
+    font=('Arial', 13, 'bold'),
     command=deleteStudent)
-delButton.pack()
+delButton.pack(pady=15)
 
 editButton = Button( # EDIT Button
     optionsFrame, 
@@ -591,9 +749,46 @@ editButton = Button( # EDIT Button
     border=1,
     cursor='hand1',
     text = "EDIT STUDENT",
-    font=('Arial', 14, 'bold'),
+    font=('Arial', 13, 'bold'),
     command=editStudent)
-editButton.pack()
+editButton.pack(pady=15)
+
+Label(optionsFrame, text="Search Student: ").pack(pady=5)
+searchStudent_category = ttk.Combobox(optionsFrame)
+searchStudent_category.pack(pady=5)
+searchStudent_entry=Entry(optionsFrame)
+searchStudent_category.pack(pady=5)
+
+
+searchStudentButton = Button( # EDIT Button
+    optionsFrame, 
+    background='#504F4F',
+    foreground='WHITE',
+    activebackground='#A4A4A4',
+    activeforeground='WHITE',
+    highlightthickness=1,
+    width=15,
+    height=1,
+    border=1,
+    cursor='hand1',
+    text = "SEARCH",
+    font=('Arial', 9, 'bold'))
+searchStudentButton.pack(pady=5)
+
+showAllButton = Button( # EDIT Button
+    optionsFrame, 
+    background='#504F4F',
+    foreground='WHITE',
+    activebackground='#A4A4A4',
+    activeforeground='WHITE',
+    highlightthickness=1,
+    width=15,
+    height=1,
+    border=1,
+    cursor='hand1',
+    text = "SHOW ALL",
+    font=('Arial', 9, 'bold'))
+showAllButton.pack(pady=5)
 
 viewCoursesButton = Button( # EDIT Button
     optionsFrame, 
@@ -626,5 +821,6 @@ exitButton = Button( # EDIT Button
     font=('Arial', 9, 'bold'),
     command=exit)
 exitButton.pack(side=LEFT,padx=5,anchor=tk.S)
+
 
 root.mainloop()
