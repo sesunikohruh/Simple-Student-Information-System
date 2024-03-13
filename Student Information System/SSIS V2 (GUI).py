@@ -77,6 +77,10 @@ def home(): # function that leads the user to the main page / tab
     databaseFrame.place(x=250,y=50,width=930,height=530)
     studentDetailsFrame.destroy()
     addStudentFrame.destroy()
+    root.deiconify()
+    viewCoursesFrame.destroy()
+    courseOptionsFrame.destroy()
+    courseDatabaseFrame.destroy()
 
         
 def exit():
@@ -131,7 +135,12 @@ def addStudentPage():
         if not(lastName and firstName and sexualOrientation and yearLevel and idNum):
             messagebox.showerror("Error","All fields must be filled.")
             return
-
+        
+        # Validates the ID input
+        if not re.match(r'^\d{4}-\d{4}$', idNum): # Check if the ID format is valid
+            messagebox.showerror("Invalid ID Input", "Oops! Enter a valid ID (YYYY-NNNN format)")
+            return
+        
         # Validates the year level input
         while True:
             try:
@@ -144,43 +153,27 @@ def addStudentPage():
             except ValueError:
                 messagebox.showerror("Invalid Year Level Input", "Oops! Enter a valid year level (1 to 4 only)")   
                 return
-            
-        # Validates the course code input if it exists or not
-            with open('CourseList.csv', 'r') as course_file:
-                reader = csv.reader(course_file) #reads the CourseList.csv file
-                courses = [row[0] for row in reader]
 
-            if courseCode in courses: #checks whether user input of the student's course is found from the course list (valid)
-                print(f"Course Name: {courses[0]}")
-                break #exits the loop once the course is found from the CourseList.csv file
-            elif courseCode == '': #if course input is empty
-                print ('N/A')
-                break
+            with open("StudentList.csv", "r") as student_file: #checks for any duplicates before adding the student
+                reader = csv.reader(student_file)
+                students = [row for row in reader]
+                
+            if [lastName,firstName,idNum,sexualOrientation,str(yearLevel),courseCode] in students:
+                messagebox.showinfo("Student already exists in the list. No duplicates allowed.")
             else:
-                messagebox.showerror('Course Not Available! Please try again.')   
-                print ('Unenrolled')
-                return
-
-        with open("StudentList.csv", "r") as student_file: #checks for any duplicates before adding the student
-            reader = csv.reader(student_file)
-            students = [row for row in reader]
-
-        studentDatabase.insert("","end",values=(lastName, firstName, sexualOrientation, idNum, yearLevel, courseCode)) #displays the newly added student to treeview
-
-        if [lastName,firstName,idNum,sexualOrientation,str(yearLevel),courseCode] not in students:
-            with open("StudentList.csv", "a", newline='') as student_file:
-                writer = csv.writer(student_file)
-                writer.writerow([lastName,firstName,sexualOrientation,idNum,yearLevel,courseCode])
-                messagebox.showinfo("Student Added","Student added successfully!")
-                # Clears all the previous field inputs by the user after adding the student successfully
-                lastName_entry.delete(0, 'end')
-                firstName_entry.delete(0, 'end')
-                sexualOrientation_combo.set('')
-                idNum_entry.delete(0, 'end')
-                yearLevel_entry.delete(0, 'end')
-                courseCode_combo.set('')
-        else:
-            messagebox.showinfo("Student already exists in the list. No duplicates allowed.")
+                studentDatabase.insert("","end",values=(lastName, firstName, sexualOrientation, idNum, yearLevel, courseCode)) #displays the newly added student to treeview
+                with open("StudentList.csv", "a", newline='') as student_file:
+                    writer = csv.writer(student_file)
+                    writer.writerow([lastName,firstName,sexualOrientation,idNum,yearLevel,courseCode])
+                    messagebox.showinfo("Student Added","Student added successfully!")
+                    # Clears all the previous field inputs by the user after adding the student successfully
+                    lastName_entry.delete(0, 'end')
+                    firstName_entry.delete(0, 'end')
+                    sexualOrientation_combo.set('')
+                    idNum_entry.delete(0, 'end')
+                    yearLevel_entry.delete(0, 'end')
+                    courseCode_combo.set('')
+                    return
 
     # ------------------------------------- E N T R I E S ---------------------------------------------------- #
 
@@ -352,7 +345,7 @@ def editStudent():
             yearLevel_entry.get(),
             idNum_entry.get(),
             courseCode_entry.get()
-            
+
         ]
 
         studentDatabase.item(selectedStudent,values=updatedDetails) # updates the student data in treeview
@@ -425,6 +418,7 @@ def editStudent():
 def viewCoursesPage():
 
 # ------------ F R A M E S ------------------------------------------------ #
+    global viewCoursesFrame
     viewCoursesFrame = ttk.Frame()
     
     global courseDatabaseFrame
@@ -460,13 +454,19 @@ def viewCoursesPage():
             if not newCourseCode or not newCourseName:
                 messagebox.showerror("Error", "Please fill in both Course Code and Course Name fields.")
                 return
-            
-            with open("CourseList.csv", "a", newline="") as course_file: # writes the newly added course to the CourseList or CSV file
-                writer = csv.writer(course_file)
-                writer.writerow([newCourseCode,newCourseName])
 
-            courseDatabase.insert("", "end", values=(newCourseCode, newCourseName))
-            messagebox.showinfo("Success", "New Course Added Successfully!")
+            with open("CourseList.csv", "r") as course_file: #read existing courses in csv file to check for any duplicates before adding new course
+                reader = csv.reader(course_file)
+                courses = [row for row in reader]
+
+            if [newCourseCode,newCourseName] not in courses:
+                courseDatabase.insert("","end",values=(newCourseCode,newCourseName)) #displays the newly added course to treeview
+                with open("CourseList.csv", "a", newline='') as course_file: # writes the newly added course to the CourseList or CSV file
+                    writer = csv.writer(course_file)
+                    writer.writerow([newCourseCode,newCourseName])
+                    messagebox.showinfo("Course Added","New Course Added Successfully!")
+            else:
+                messagebox.showinfo("Course Duplicate","Course already exists in the list. No duplicates allowed.")
 
             addCourse_window.destroy()
 
@@ -505,7 +505,7 @@ def viewCoursesPage():
         command=cancelChanges)
         cancelButton.grid(row=7, column=0, columnspan=2, padx=70, pady=2)
 
-        saveButton = Button( # SAVE Button (for Edit Student Window)
+        saveButton = Button( # SAVE Button (for Add Course Window)
             addCourse_window, 
             background='#0055D8',
             foreground='WHITE',
@@ -520,8 +520,6 @@ def viewCoursesPage():
             command=saveCourse)
         saveButton.grid(row=6, column=0, columnspan=2, padx=70, pady=10)
 
-        courseDatabase.insert("","end",values=(addCourseCode,addCourseName)) #displays the newly added student to treeview
-
 
     def deleteCourse():
 
@@ -532,25 +530,44 @@ def viewCoursesPage():
            return
        
        confirm = messagebox.askyesnocancel("Confiriming Deletion", "Are you sure you want to delete this course")
-       if not confirm: 
+       if not confirm:
             return
-       
-       for selectedCourses in selectedCourse:
-           courses = courseDatabase.item(selectedCourse)['values']
 
-           with open ('CourseList.csv',"r") as course_file:
-               courses = list(csv.reader(course_file))
-           
-           courses = [c for c in courses if c[:2] != courses[:2]]
-               
-           with open ("CourseList.csv","w",newline='') as course_file: # writes updated course list back to the file
-                writer = csv.writer(course_file)
-                writer.writerow(courses)
+       # Get the course code of the selected course
+       course_values = courseDatabase.item(selectedCourse, "values")
+       course_code = course_values[0]
 
+       # Delete the course from the treeview
+       courseDatabase.delete(selectedCourse)
 
-           courseDatabase.delete(selectedCourse) # deletes a selected item or student from the student database treeview
+       # Remove the course from the CourseList.csv file
+       with open("CourseList.csv", "r") as course_file:
+            courses = list(csv.reader(course_file))
 
-           messagebox.showinfo("Course Deleted", "Course deleted successfully!")
+       with open("CourseList.csv", "w", newline='') as course_file:
+            writer = csv.writer(course_file)
+            for course in courses:
+                if course[0] != course_code:
+                    writer.writerow(course)
+
+       # Unenroll students who are enrolled in the deleted course
+       with open("StudentList.csv", "r") as student_file:
+            reader = csv.reader(student_file)
+            students = list(reader)
+
+       updated_students = []
+       for student in students:
+            if student[5] == course_code:  # Check if the student is enrolled in the deleted course
+                student[5] = ''  # Unenroll the student
+            updated_students.append(student)
+
+       # Write the updated student list back to the StudentList.csv file
+       with open("StudentList.csv", "w", newline='') as student_file:
+            writer = csv.writer(student_file)
+            for student in updated_students:
+                writer.writerow(student)
+
+       messagebox.showinfo("Course Deleted", "Course deleted successfully!")
 
     viewCoursesFrame.pack()
     optionsFrame.destroy()
