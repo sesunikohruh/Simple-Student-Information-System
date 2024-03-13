@@ -6,7 +6,6 @@ import re
 
 # ------------------------------------- MAIN PAGE / TAB ------------------------------------------------ #
 
-
 root = tk.Tk()
 root.geometry("1200x600") #1300x550
 root.resizable(False,False)
@@ -55,7 +54,7 @@ studentDatabase.column(6,width=100)
 
 # ------------------------------------- F U N C T I O N S ------------------------------------------------ #
 
-studentDatabase_predefinedrows = ["Last Name", "First Name", "Gender", "Year Level", "ID Number", "Course Code"]
+studentDatabase_predefinedrows = ["Last Name", "First Name", "Sex", "Year Level", "ID Number", "Course Code"]
 
 # Read the CSV file and add the data to the treeview widget
 with open("StudentList.csv", "r") as student_file:
@@ -68,19 +67,38 @@ with open("StudentList.csv", "r") as student_file:
             studentDatabase.insert("", "end", values=row)
 
 def home(): # function that leads the user to the main page / tab
-    addButtonMain.pack()
-    delButton.pack()
-    editButton.pack()
-    viewCoursesButton.pack()
-    exitButton.pack()
-    optionsFrame.place(x=25,y=50,width=200,height=530)
-    databaseFrame.place(x=250,y=50,width=930,height=530)
-    studentDetailsFrame.destroy()
-    addStudentFrame.destroy()
+
+    if addButtonMain.winfo_exists():
+        addButtonMain.pack()
+    if delButton.winfo_exists():
+        delButton.pack()
+    if editButton.winfo_exists():
+        editButton.pack()
+    if viewCoursesButton.winfo_exists():
+        viewCoursesButton.pack()
+    if exitButton.winfo_exists():
+        exitButton.pack()
+    
+    # Adjust frames if they exist
+    if optionsFrame.winfo_exists():
+        optionsFrame.place(x=25, y=50, width=200, height=530)
+    if databaseFrame.winfo_exists():
+        databaseFrame.place(x=250, y=50, width=930, height=530)
+    
+    # Destroy unnecessary frames if they exist
+    if 'addStudentFrame' in globals() and addStudentFrame.winfo_exists():
+        addStudentFrame.destroy()
+    if 'studentDetailsFrame' in globals() and studentDetailsFrame.winfo_exists():
+        studentDetailsFrame.destroy()
+    if 'viewCoursesFrame' in globals() and viewCoursesFrame.winfo_exists():
+        viewCoursesFrame.destroy()
+    if 'courseOptionsFrame' in globals() and courseOptionsFrame.winfo_exists():
+        courseOptionsFrame.destroy()
+    if 'courseDatabaseFrame' in globals() and courseDatabaseFrame.winfo_exists():
+        courseDatabaseFrame.destroy()
+    
+    # Show root window
     root.deiconify()
-    viewCoursesFrame.destroy()
-    courseOptionsFrame.destroy()
-    courseDatabaseFrame.destroy()
 
         
 def exit():
@@ -313,15 +331,16 @@ def editStudent():
     sexualOrientation.set(currentValues[2])
     sexualOrientation.grid(row=2,column=1,padx=5,pady=5)
 
-    Label(editStudent_window, text="Year Level: ").grid(row=3, column=0, padx=5, pady=5)
-    yearLevel_entry = Entry(editStudent_window)
-    yearLevel_entry.insert(0, currentValues[3])
-    yearLevel_entry.grid(row=3, column=1, padx=5, pady=5)
-
     Label(editStudent_window, text="ID Number: ").grid(row=4, column=0, padx=5, pady=5)
     idNum_entry = Entry(editStudent_window)
-    idNum_entry.insert(0, currentValues[4])
+    idNum_entry.insert(0, currentValues[3])
     idNum_entry.grid(row=4, column=1, padx=5, pady=5)
+
+    Label(editStudent_window, text="Year Level: ").grid(row=3, column=0, padx=5, pady=5)
+    yearLevel_entry = Entry(editStudent_window)
+    yearLevel_entry.insert(0, currentValues[4])
+    yearLevel_entry.grid(row=3, column=1, padx=5, pady=5)
+
 
     courseCodes=[]
     with open('CourseList.csv','r') as course_file:
@@ -342,11 +361,26 @@ def editStudent():
             lastName.get().capitalize(),
             firstName.get().capitalize(),
             sexualOrientation.get(),
-            yearLevel_entry.get(),
             idNum_entry.get(),
+            yearLevel_entry.get(),
             courseCode_entry.get()
 
         ]
+
+         # Validation for year level
+        try:
+            yearLevel = int(yearLevel_entry.get())
+            if not (1 <= yearLevel <= 4):
+                messagebox.showerror("Invalid Year Level", "Year level must be between 1 and 4.")
+                return
+        except ValueError:
+            messagebox.showerror("Invalid Year Level", "Year level must be a valid integer.")
+            return
+
+        # Validation for ID number
+        if not re.match(r'^\d{4}-\d{4}$', idNum_entry.get()):
+            messagebox.showerror("Invalid ID Number", "ID number must be in YYYY-NNNN format.")
+            return
 
         studentDatabase.item(selectedStudent,values=updatedDetails) # updates the student data in treeview
 
@@ -414,7 +448,7 @@ def editStudent():
             return
         
 
-############################################################3333
+############################################################
 def viewCoursesPage():
 
 # ------------ F R A M E S ------------------------------------------------ #
@@ -423,11 +457,11 @@ def viewCoursesPage():
     
     global courseDatabaseFrame
     courseDatabaseFrame = ttk.Frame(root,relief=GROOVE,borderwidth=5)
-    courseDatabaseFrame.place(x=25,y=50,width=1150,height=450)
+    courseDatabaseFrame.place(x=25,y=50,width=1155,height=450)
 
     global courseOptionsFrame
     courseOptionsFrame = ttk.Frame(root,relief=GROOVE,borderwidth=5)
-    courseOptionsFrame.place(x=25,y=510,width=1150,height=50)
+    courseOptionsFrame.place(x=25,y=500,width=1155,height=80)
 
 # ---------------------------- C O U R S E  D A T A B A S E --------------- #
     
@@ -555,23 +589,20 @@ def viewCoursesPage():
             reader = csv.reader(student_file)
             students = list(reader)
 
-       updated_students = []
+       updatedStudents = []
        for student in students:
             if student[5] == course_code:  # Check if the student is enrolled in the deleted course
-                student[5] = ''  # Unenroll the student
-            updated_students.append(student)
+                student[5] = 'Unenrolled'  # Unenroll the student
+            updatedStudents.append(student)
 
        # Write the updated student list back to the StudentList.csv file
        with open("StudentList.csv", "w", newline='') as student_file:
             writer = csv.writer(student_file)
-            for student in updated_students:
+            for student in updatedStudents:
                 writer.writerow(student)
 
        messagebox.showinfo("Course Deleted", "Course deleted successfully!")
 
-    viewCoursesFrame.pack()
-    optionsFrame.destroy()
-    databaseFrame.destroy() 
 
     def editCourse():
 
@@ -720,6 +751,10 @@ def viewCoursesPage():
         font=('Arial', 12, 'bold'),
         command=home)
     homeButton.pack(side=RIGHT,padx=15)
+
+    viewCoursesFrame.pack()
+    optionsFrame.pack_forget()
+    databaseFrame.pack_forget()
 
 # ------------------------------------- B U T T O N S (MAIN PAGE / TAB) ---------------------------------------------------- #
 
