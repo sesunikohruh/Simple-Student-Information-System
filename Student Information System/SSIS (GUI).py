@@ -66,6 +66,7 @@ with open("StudentList.csv", "r") as student_file:
         for row in reader: 
             studentDatabase.insert("", "end", values=row)
 
+
 def home(): # function that leads the user to the main page / tab
 
     if addButtonMain.winfo_exists():
@@ -104,7 +105,8 @@ def home(): # function that leads the user to the main page / tab
 def exit():
     print("Exiting...")
     root.destroy()
-    
+
+
 def addStudentPage():
 
     # ---------------------- FRAMES USED IN ADD STUDENT PAGE / TAB --------------------------------------- #
@@ -447,7 +449,6 @@ def editStudent():
             print ('Unenrolled')
             return
         
-
 ############################################################
 def viewCoursesPage():
 
@@ -804,43 +805,6 @@ editButton = Button( # EDIT Button
     font=('Arial', 13, 'bold'),
     command=editStudent)
 editButton.pack(pady=15)
-
-Label(optionsFrame, text="Search Student: ").pack(pady=5)
-searchStudent_category = ttk.Combobox(optionsFrame)
-searchStudent_category.pack(pady=5)
-searchStudent_entry=Entry(optionsFrame)
-searchStudent_category.pack(pady=5)
-
-
-searchStudentButton = Button( # EDIT Button
-    optionsFrame, 
-    background='#504F4F',
-    foreground='WHITE',
-    activebackground='#A4A4A4',
-    activeforeground='WHITE',
-    highlightthickness=1,
-    width=15,
-    height=1,
-    border=1,
-    cursor='hand1',
-    text = "SEARCH",
-    font=('Arial', 9, 'bold'))
-searchStudentButton.pack(pady=5)
-
-showAllButton = Button( # EDIT Button
-    optionsFrame, 
-    background='#504F4F',
-    foreground='WHITE',
-    activebackground='#A4A4A4',
-    activeforeground='WHITE',
-    highlightthickness=1,
-    width=15,
-    height=1,
-    border=1,
-    cursor='hand1',
-    text = "SHOW ALL",
-    font=('Arial', 9, 'bold'))
-showAllButton.pack(pady=5)
 
 viewCoursesButton = Button( # EDIT Button
     optionsFrame, 
