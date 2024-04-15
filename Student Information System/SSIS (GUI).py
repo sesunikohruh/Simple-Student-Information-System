@@ -43,7 +43,7 @@ studentDatabase.heading(1, text="Last Name")
 studentDatabase.column(1,width=200)
 studentDatabase.heading(2, text="First Name")
 studentDatabase.column(2,width=200)
-studentDatabase.heading(3, text="Gender")
+studentDatabase.heading(3, text="Sex")
 studentDatabase.column(3,width=75)
 studentDatabase.heading(4, text="ID Number")
 studentDatabase.column(4,width=100)
@@ -57,7 +57,7 @@ studentDatabase.column(6,width=100)
 studentDatabase_predefinedrows = ["Last Name", "First Name", "Sex", "Year Level", "ID Number", "Course Code"]
 
 # Read the CSV file and add the data to the treeview widget
-with open("StudentList.csv", "r") as student_file:
+with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv") as student_file:
     reader = csv.reader(student_file)
     if not studentDatabase_predefinedrows:  # Check if CSV file is empty
         predefined_rows = ["Last Name", "First Name", "Gender", "Year Level", "ID Number", "Course Code"]
@@ -65,7 +65,6 @@ with open("StudentList.csv", "r") as student_file:
     else:
         for row in reader: 
             studentDatabase.insert("", "end", values=row)
-
 
 def home(): # function that leads the user to the main page / tab
 
@@ -106,6 +105,7 @@ def exit():
     print("Exiting...")
     root.destroy()
 
+    
 
 def addStudentPage():
 
@@ -142,7 +142,7 @@ def addStudentPage():
     # ------------------------------------ F U N C T I O N S ------------------------------------------------- #
 
     def addStudent(): #this function adds the neccessary information of the student to a csv file by asking the user for input
-        
+
         # Getting the Inputs
         lastName = lastName_entry.get().capitalize()
         firstName = firstName_entry.get().capitalize()
@@ -155,34 +155,36 @@ def addStudentPage():
         if not(lastName and firstName and sexualOrientation and yearLevel and idNum):
             messagebox.showerror("Error","All fields must be filled.")
             return
-        
+            
         # Validates the ID input
         if not re.match(r'^\d{4}-\d{4}$', idNum): # Check if the ID format is valid
             messagebox.showerror("Invalid ID Input", "Oops! Enter a valid ID (YYYY-NNNN format)")
             return
-        
+            
         # Validates the year level input
-        while True:
-            try:
-                yearLevel = int(yearLevel)
-                if 1 <= yearLevel <= 4: #checks if year level input is valid
-                    pass
-                else:
-                    messagebox.showerror("Invalid Year Level Input", "Oops! Enter a valid year level (1 to 4 only)")
-                    return
-            except ValueError:
-                messagebox.showerror("Invalid Year Level Input", "Oops! Enter a valid year level (1 to 4 only)")   
-                return
-
-            with open("StudentList.csv", "r") as student_file: #checks for any duplicates before adding the student
-                reader = csv.reader(student_file)
-                students = [row for row in reader]
-                
-            if [lastName,firstName,idNum,sexualOrientation,str(yearLevel),courseCode] in students:
-                messagebox.showinfo("Student already exists in the list. No duplicates allowed.")
+        try:
+            yearLevel = int(yearLevel)
+            if 1 <= yearLevel <= 4: #checks if year level input is valid
+                pass
             else:
-                studentDatabase.insert("","end",values=(lastName, firstName, sexualOrientation, idNum, yearLevel, courseCode)) #displays the newly added student to treeview
-                with open("StudentList.csv", "a", newline='') as student_file:
+                messagebox.showerror("Invalid Year Level Input", "Oops! Enter a valid year level (1 to 4 only)")
+                return
+        except ValueError:
+            messagebox.showerror("Invalid Year Level Input", "Oops! Enter a valid year level (1 to 4 only)")   
+            return
+        
+        # verifies whether there are student duplicates or not
+        with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv") as student_file:
+            reader = csv.reader(student_file)
+            students = set((row[0], row[1], row[2], row[3], row[4], row[5]) for row in reader)
+
+        if (lastName, firstName, sexualOrientation, idNum, yearLevel, courseCode) == students:
+            messagebox.showerror("Duplicate Student", "The student already exists.")
+            return
+        else:
+            # If the student is not a duplicate, add them to the CSV file
+            studentDatabase.insert("","end",values=(lastName, firstName, sexualOrientation, idNum, yearLevel, courseCode)) #displays the newly added student to treeview
+            with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv", "a", newline='') as student_file:
                     writer = csv.writer(student_file)
                     writer.writerow([lastName,firstName,sexualOrientation,idNum,yearLevel,courseCode])
                     messagebox.showinfo("Student Added","Student added successfully!")
@@ -228,7 +230,7 @@ def addStudentPage():
     courseCode_label.pack(side=tk.LEFT)
 
     # Read course codes from CourseList.csv
-    with open("CourseList.csv", "r") as course_file:
+    with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv") as course_file:
         reader = csv.reader(course_file)
         courseCodes = [row[0] for row in reader]
 
@@ -284,7 +286,7 @@ def deleteStudent(): #this function enables the user to remove a selected studen
 
     studentDatabase.delete(selectedStudent) # this enables the user to delete a selected item or student from the student database treeview
 
-    with open("StudentList.csv", "r") as student_file:
+    with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv") as student_file:
         reader = csv.reader(student_file)
         students=list(reader)
     
@@ -293,7 +295,7 @@ def deleteStudent(): #this function enables the user to remove a selected studen
             students.remove(student)
             break
 
-    with open("StudentList.csv", "w", newline='') as student_file:
+    with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv", "w", newline='') as student_file:
         writer = csv.writer(student_file)
         for student in students:
              writer.writerow(student)
@@ -345,7 +347,7 @@ def editStudent():
 
 
     courseCodes=[]
-    with open('CourseList.csv','r') as course_file:
+    with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv") as course_file:
         reader = csv.reader(course_file)
         for row in reader:
             courseCodes.append(row[0])
@@ -355,6 +357,7 @@ def editStudent():
     courseCode_entry.set(currentValues[5])
     courseCode_entry.grid(row=5, column=1, padx=5, pady=5)
 
+    
     # -------------------------------- F U N C T I O N --------------------------------#
     def saveChanges():
 
@@ -386,7 +389,7 @@ def editStudent():
 
         studentDatabase.item(selectedStudent,values=updatedDetails) # updates the student data in treeview
 
-        with open("StudentList.csv", "w", newline="") as student_file:
+        with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv", "w", newline="") as student_file:
             writer = csv.writer(student_file)
             for child in studentDatabase.get_children():
                 values = studentDatabase.item(child, "values")
@@ -442,13 +445,53 @@ def editStudent():
         return
     else: 
         if courseCode_entry.get() == '': #if course input is empty
-            print('N/A')
-            return
+            return ''
         else:
             messagebox.showerror("Unvailable Course!",'Course Not Available! Please try again.')   
             print ('Unenrolled')
             return
         
+def clearHighlights():
+# Removes the highlight tag from all students in the treeview
+    for student in studentDatabase.get_children():
+        studentDatabase.item(student, tags=()) # remove all tags from the student  
+
+def searchStudent():
+    
+    clearHighlights()
+    # Gets the input from the search entry
+    searchInput = searchStudent_entry.get().strip()
+    
+    # If the search input is empty, shows an error message
+    if not searchInput:
+        messagebox.showerror("Error","Search input must not be empty.")
+        return
+    
+    # Gets the selected column to search
+    searchColumn = searchStudent_category.get()
+    
+    matchingStudents = []
+    # Checks if the search input matches any value in the selected column of the treeview
+    for student in studentDatabase.get_children():
+        if searchColumn == "Last Name":
+            lastName = studentDatabase.set(student, 1) # makes sure that it only detects items within that certain column
+            if searchInput.lower() in lastName.lower():
+                matchingStudents.append(student) # add the student to the list of matching students
+        elif searchColumn == "ID Number":
+            idNum = studentDatabase.set(student, 4)
+            if searchInput.lower() in idNum:
+                studentDatabase.tag_configure('highlight', background='yellow') # selects the student with the matching search input
+                studentDatabase.item(student, tags=('highlight'))
+                studentDatabase.see(student) # brings the matching student into view
+                break
+    if matchingStudents: # if there are any matching students
+        for student in matchingStudents:
+            studentDatabase.tag_configure('highlight', background='yellow')
+            studentDatabase.item(student, tags=('highlight'))
+            studentDatabase.see(student)
+    else:
+        messagebox.showinfo("Student not found","Oops! Student not found in the list.")
+
 ############################################################
 def viewCoursesPage():
 
@@ -465,12 +508,12 @@ def viewCoursesPage():
     courseOptionsFrame.place(x=25,y=500,width=1155,height=80)
 
 # ---------------------------- C O U R S E  D A T A B A S E --------------- #
-    
+    global courseDatabase
     courseDatabase = ttk.Treeview(courseDatabaseFrame, columns=(1, 2), show="headings")
     courseDatabase.heading(1, text="Course Code")
     courseDatabase.heading(2, text="Course Name")
 
-    with open("CourseList.csv", "r") as course_file:
+    with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv") as course_file:
         reader = csv.reader(course_file)
         for row in reader:
             courseDatabase.insert("", "end", values=row)
@@ -490,13 +533,13 @@ def viewCoursesPage():
                 messagebox.showerror("Error", "Please fill in both Course Code and Course Name fields.")
                 return
 
-            with open("CourseList.csv", "r") as course_file: #read existing courses in csv file to check for any duplicates before adding new course
+            with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv") as course_file: #read existing courses in csv file to check for any duplicates before adding new course
                 reader = csv.reader(course_file)
                 courses = [row for row in reader]
 
             if [newCourseCode,newCourseName] not in courses:
                 courseDatabase.insert("","end",values=(newCourseCode,newCourseName)) #displays the newly added course to treeview
-                with open("CourseList.csv", "a", newline='') as course_file: # writes the newly added course to the CourseList or CSV file
+                with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv", "a", newline='') as course_file: # writes the newly added course to the CourseList or CSV file
                     writer = csv.writer(course_file)
                     writer.writerow([newCourseCode,newCourseName])
                     messagebox.showinfo("Course Added","New Course Added Successfully!")
@@ -576,17 +619,17 @@ def viewCoursesPage():
        courseDatabase.delete(selectedCourse)
 
        # Remove the course from the CourseList.csv file
-       with open("CourseList.csv", "r") as course_file:
+       with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv") as course_file:
             courses = list(csv.reader(course_file))
 
-       with open("CourseList.csv", "w", newline='') as course_file:
+       with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv", "w", newline='') as course_file:
             writer = csv.writer(course_file)
             for course in courses:
                 if course[0] != course_code:
                     writer.writerow(course)
 
        # Unenroll students who are enrolled in the deleted course
-       with open("StudentList.csv", "r") as student_file:
+       with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv") as student_file:
             reader = csv.reader(student_file)
             students = list(reader)
 
@@ -597,7 +640,7 @@ def viewCoursesPage():
             updatedStudents.append(student)
 
        # Write the updated student list back to the StudentList.csv file
-       with open("StudentList.csv", "w", newline='') as student_file:
+       with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv", "w", newline='') as student_file:
             writer = csv.writer(student_file)
             for student in updatedStudents:
                 writer.writerow(student)
@@ -644,7 +687,7 @@ def viewCoursesPage():
 
             courseDatabase.item(selectedCourse,values=updatedDetails) # updates the course data in treeview
 
-            with open("CourseList.csv", "w", newline="") as course_file:
+            with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv", "w", newline="") as course_file:
                 writer = csv.writer(course_file)
                 for child in courseDatabase.get_children():
                     values = courseDatabase.item(child, "values")
@@ -806,11 +849,49 @@ editButton = Button( # EDIT Button
     command=editStudent)
 editButton.pack(pady=15)
 
-viewCoursesButton = Button( # EDIT Button
+Label(optionsFrame, text="Search by:").pack(pady=10)
+searchStudent_category = ttk.Combobox(optionsFrame,values=["Last Name","ID Number"])
+searchStudent_category.pack(pady=5)
+searchStudent_entry=Entry(optionsFrame)
+searchStudent_entry.pack(pady=5)
+
+searchStudentButton = Button( # EDIT Button
     optionsFrame, 
     background='#504F4F',
     foreground='WHITE',
     activebackground='#A4A4A4',
+    activeforeground='WHITE',
+    highlightthickness=1,
+    width=15,
+    height=1,
+    border=1,
+    cursor='hand1',
+    text = "SEARCH",
+    font=('Arial', 9, 'bold'),
+    command=searchStudent)
+searchStudentButton.pack(pady=5)
+
+clearSearchButton = Button( # CLEAR Button
+    optionsFrame, 
+    background='#504F4F',
+    foreground='WHITE',
+    activebackground='#A4A4A4',
+    activeforeground='WHITE',
+    highlightthickness=1,
+    width=15,
+    height=1,
+    border=1,
+    cursor='hand1',
+    text = "CLEAR",
+    font=('Arial', 9, 'bold'),
+    command=clearHighlights)
+clearSearchButton.pack(pady=5)
+
+viewCoursesButton = Button( # EDIT Button
+    optionsFrame, 
+    background='BLUE',
+    foreground='WHITE',
+    activebackground='DARK CYAN',
     activeforeground='WHITE',
     highlightthickness=1,
     width=15,
