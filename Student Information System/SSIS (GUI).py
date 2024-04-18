@@ -31,7 +31,7 @@ databaseFrame.place(x=250,y=50,width=930,height=530)
 
 yScrollbar = Scrollbar(databaseFrame,orient=VERTICAL)
 # Treeview widget to display the data from CSV file
-studentDatabase = ttk.Treeview(databaseFrame,columns=(1,2,3,4,5,6),show="headings",height="25",yscrollcommand=yScrollbar.set)
+studentDatabase = ttk.Treeview(databaseFrame,columns=(1,2,3,4,5,6,7),show="headings",height="25",yscrollcommand=yScrollbar.set)
 yScrollbar.pack(side=RIGHT,fill=Y)
 yScrollbar.config(command=studentDatabase.yview)
 #tree = ttk.Treeview(databaseFrame,columns=(1,2,3,4,5,6),show="headings",height="25")
@@ -51,6 +51,8 @@ studentDatabase.heading(5, text="Year Level")
 studentDatabase.column(5,width=70)
 studentDatabase.heading(6, text="Course Code")
 studentDatabase.column(6,width=100)
+studentDatabase.heading(7, text="Status")
+studentDatabase.column(7,width=100)
 
 # ------------------------------------- F U N C T I O N S ------------------------------------------------ #
 
@@ -148,7 +150,7 @@ def addStudentPage():
         firstName = firstName_entry.get().capitalize()
         sexualOrientation = sexualOrientation_combo.get()
         yearLevel = yearLevel_entry.get()
-        idNum = idNum_entry.get()
+        idNum = idNum_entry.get().strip()
         courseCode = courseCode_combo.get()
 
         # Checks if any of the entry fields are blank or empty
@@ -173,29 +175,29 @@ def addStudentPage():
             messagebox.showerror("Invalid Year Level Input", "Oops! Enter a valid year level (1 to 4 only)")   
             return
         
-        # verifies whether there are student duplicates or not
-        with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv") as student_file:
-            reader = csv.reader(student_file)
-            students = set((row[0], row[1], row[2], row[3], row[4], row[5]) for row in reader)
+        with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv") as student_file: #read existing students in csv file to check for any duplicates before adding new course
+                reader = csv.reader(student_file)
+                next(reader)
+                students = [row for row in reader]
 
-        if (lastName, firstName, sexualOrientation, idNum, yearLevel, courseCode) == students:
-            messagebox.showerror("Duplicate Student", "The student already exists.")
+        if any(row[3] == idNum for row in students):
+            messagebox.showinfo("Student Duplicate","Student already exists in the list. No duplicates allowed.")
             return
         else:
             # If the student is not a duplicate, add them to the CSV file
-            studentDatabase.insert("","end",values=(lastName, firstName, sexualOrientation, idNum, yearLevel, courseCode)) #displays the newly added student to treeview
-            with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv", "a", newline='') as student_file:
-                    writer = csv.writer(student_file)
-                    writer.writerow([lastName,firstName,sexualOrientation,idNum,yearLevel,courseCode])
-                    messagebox.showinfo("Student Added","Student added successfully!")
-                    # Clears all the previous field inputs by the user after adding the student successfully
-                    lastName_entry.delete(0, 'end')
-                    firstName_entry.delete(0, 'end')
-                    sexualOrientation_combo.set('')
-                    idNum_entry.delete(0, 'end')
-                    yearLevel_entry.delete(0, 'end')
-                    courseCode_combo.set('')
-                    return
+            status = "Enrolled" if courseCode else "Unenrolled"
+            studentDatabase.insert("","end",values=(lastName, firstName, sexualOrientation, idNum, yearLevel, courseCode,status)) #displays the newly added student to treeview
+            with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv", "a", newline='') as student_file: # writes the newly added course to the CourseList or CSV file
+                writer = csv.writer(student_file)
+                writer.writerow([lastName,firstName,sexualOrientation,idNum,yearLevel,courseCode,status])
+                messagebox.showinfo("Student Added","New Student Added Successfully!")
+                # Clears all the previous field inputs by the user after adding the student successfully
+                lastName_entry.delete(0, 'end')
+                firstName_entry.delete(0, 'end')
+                sexualOrientation_combo.set('')
+                idNum_entry.delete(0, 'end')
+                yearLevel_entry.delete(0, 'end')
+                courseCode_combo.set('')
 
     # ------------------------------------- E N T R I E S ---------------------------------------------------- #
 
@@ -368,7 +370,8 @@ def editStudent():
             sexualOrientation.get(),
             idNum_entry.get(),
             yearLevel_entry.get(),
-            courseCode_entry.get()
+            courseCode_entry.get(),
+            "Enrolled" if courseCode_entry.get().lower() else "Unenrolled"
 
         ]
 
@@ -636,7 +639,8 @@ def viewCoursesPage():
        updatedStudents = []
        for student in students:
             if student[5] == course_code:  # Check if the student is enrolled in the deleted course
-                student[5] = 'Unenrolled'  # Unenroll the student
+                student[5] = ''  # Unenroll the student
+                student[6] = "Enrolled"  if student[5] else "Unenrolled"  # Update the student's enrollment status
             updatedStudents.append(student)
 
        # Write the updated student list back to the StudentList.csv file
@@ -682,7 +686,6 @@ def viewCoursesPage():
 
                 courseCode.get().upper(),
                 courseName.get().upper(),
-                
             ]
 
             courseDatabase.item(selectedCourse,values=updatedDetails) # updates the course data in treeview
