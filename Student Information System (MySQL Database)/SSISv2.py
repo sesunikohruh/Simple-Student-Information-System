@@ -1,9 +1,9 @@
-import mysql.connector
 import tkinter as tk
 from tkinter import messagebox, ttk
 from tkinter import *
 import csv
 import re
+import mysql.connector
 
 # ------------------------------------- MAIN PAGE / TAB ------------------------------------------------ #
 
@@ -55,19 +55,102 @@ studentDatabase.column(6,width=100)
 studentDatabase.heading(7, text="Status")
 studentDatabase.column(7,width=100)
 
+# ------------------------------------- D A T A B A S E  ------------------------------------------------ #
+
+def connectToDatabase():
+
+    connection = mysql.connector.connect(
+                host='localhost',
+                user='root',
+                password='admin123',
+                database='ssisv2'
+            )
+    return connection
+
+def fetchCourseCodes():
+    connection = connectToDatabase()
+    cursor = connection.cursor()
+
+    query = "SELECT courseCode FROM courses"
+    cursor.execute(query)
+    result = cursor.fetchall()
+    courseCodes = [row[0] for row in result]
+
+    cursor.close()
+    connection.close()
+
+    return courseCodes
+
+def readStudents():
+
+    connection = connectToDatabase()
+    cursor = connection.cursor()
+
+    query = "SELECT * FROM students"
+    cursor.execute(query)
+
+    rows = cursor.fetchall()
+    cursor.close()
+    connection.close()
+
+    for row in rows:
+        studentDatabase.insert("", "end", values=row)
+
+def readCourses():
+    connection = connectToDatabase()
+    cursor = connection.cursor()
+
+    query = "SELECT * FROM courses"
+    cursor.execute(query)
+
+    rows = cursor.fetchall()
+    cursor.close()
+    connection.close()
+
+    for row in rows:
+        courseDatabase.insert("", "end", values=row)
+
+def refreshStudents():
+    connection = connectToDatabase()
+    cursor = connection.cursor()
+
+    query = "SELECT * FROM students"
+    cursor.execute(query)
+
+    rows = cursor.fetchall()
+    cursor.close()
+    connection.close()
+
+    # Clear the Treeview widget
+    studentDatabase.delete(*studentDatabase.get_children())
+
+    # Insert the fetched data into the Treeview widget
+    for row in rows:
+        studentDatabase.insert("", "end", values=row)
+
+def refreshCourses():
+    connection = connectToDatabase()
+    cursor = connection.cursor()
+
+    query = "SELECT * FROM courses"
+    cursor.execute(query)
+
+    rows = cursor.fetchall()
+    cursor.close()
+    connection.close()
+
+    # Clear the Treeview widget
+    courseDatabase.delete(*courseDatabase.get_children())
+
+    # Insert the fetched data into the Treeview widget
+    for row in rows:
+        courseDatabase.insert("", "end", values=row)
+
 # ------------------------------------- F U N C T I O N S ------------------------------------------------ #
 
 studentDatabase_predefinedrows = ["Last Name", "First Name", "Sex", "Year Level", "ID Number", "Course Code"]
 
-# Read the CSV file and add the data to the treeview widget
-with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv") as student_file:
-    reader = csv.reader(student_file)
-    if not studentDatabase_predefinedrows:  # Check if CSV file is empty
-        predefined_rows = ["Last Name", "First Name", "Gender", "Year Level", "ID Number", "Course Code"]
-        studentDatabase.insert("", "end", values=predefined_rows)  # Insert predefined rows to treeview
-    else:
-        for row in reader: 
-            studentDatabase.insert("", "end", values=row)
+readStudents()
 
 def home(): # function that leads the user to the main page / tab
 
@@ -108,8 +191,6 @@ def exit():
     print("Exiting...")
     root.destroy()
 
-    
-
 def addStudentPage():
 
     # ---------------------- FRAMES USED IN ADD STUDENT PAGE / TAB --------------------------------------- #
@@ -143,33 +224,39 @@ def addStudentPage():
     courseCode_row.pack(side=tk.TOP, fill=tk.X)
     
     # ------------------------------------ F U N C T I O N S ------------------------------------------------- #
-
-    def addStudent(): #this function adds the neccessary information of the student to a csv file by asking the user for input
+    def addStudent():  # this function adds the neccessary information of the student to a csv file by asking the user for input
 
         # Connect to the MySQL database
-        student_db = mysql.connector.connect(user='username', password='password', host='localhost', database='studentDatabase')
-        cursor = student_db.cursor()
+        connection = connectToDatabase()
+        cursor = connection.cursor()
 
         # Getting the Inputs
         lastName = lastName_entry.get().capitalize()
         firstName = firstName_entry.get().capitalize()
         sexualOrientation = sexualOrientation_combo.get()
-        yearLevel = int(yearLevel_entry.get())
+        yearLevel = yearLevel_entry.get()
         idNum = idNum_entry.get().strip()
         courseCode = courseCode_combo.get()
 
         # Checks if any of the entry fields are blank or empty
         if not(lastName and firstName and sexualOrientation and yearLevel and idNum):
-            messagebox.showerror("Error","All fields must be filled.")
+            messagebox.showerror("Error", "All fields must be filled.")
             return
 
         # Validates the ID input
-        if not re.match(r'^\d{4}-\d{4}$', idNum): # Check if the ID format is valid
+        if not re.match(r'^\d{4}-\d{4}$', idNum):  # Check if the ID format is valid
             messagebox.showerror("Invalid ID Input", "Oops! Enter a valid ID (YYYY-NNNN format)")
             return
 
         # Validates the year level input
-        if not (1 <= yearLevel <= 4): #checks if year level input is valid
+        try:
+            yearLevel = int(yearLevel)
+            if 1 <= yearLevel <= 4:  # checks if year level input is valid
+                pass
+            else:
+                messagebox.showerror("Invalid Year Level Input", "Oops! Enter a valid year level (1 to 4 only)")
+                return
+        except ValueError:
             messagebox.showerror("Invalid Year Level Input", "Oops! Enter a valid year level (1 to 4 only)")
             return
 
@@ -178,17 +265,19 @@ def addStudentPage():
         cursor.execute(query, (idNum,))
         result = cursor.fetchone()
         if result:
-            messagebox.showinfo("Student Duplicate","Student already exists in the list. No duplicates allowed.")
+            messagebox.showinfo("Student Duplicate", "Student already exists in the list. No duplicates allowed.")
             return
 
         # If the student is not a duplicate, add them to the database
         status = "Enrolled" if courseCode else "Unenrolled"
-        query = "INSERT INTO students (lastName, firstName, sexualOrientation, idNum, yearLevel, courseCode, status) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+        query = "INSERT INTO students (lastName, firstName, sex, idNum, yearLevel, courseCode, status) VALUES (%s, %s, %s, %s, %s, %s, %s)"
         cursor.execute(query, (lastName, firstName, sexualOrientation, idNum, yearLevel, courseCode, status))
-        student_db.commit()
+        connection.commit()
+
+        refreshStudents()
 
         # Display success message and clear the form
-        messagebox.showinfo("Student Added","New Student Added Successfully!")
+        messagebox.showinfo("Student Added", "New Student Added Successfully!")
         lastName_entry.delete(0, 'end')
         firstName_entry.delete(0, 'end')
         sexualOrientation_combo.set('')
@@ -198,7 +287,7 @@ def addStudentPage():
 
         # Close the database connection
         cursor.close()
-        student_db.close()
+        connection.close()
 
     # ------------------------------------- E N T R I E S ---------------------------------------------------- #
 
@@ -232,10 +321,8 @@ def addStudentPage():
     courseCode_label = tk.Label(courseCode_row, text="Course Code (ex. BSCS): ")
     courseCode_label.pack(side=tk.LEFT)
 
-    # Read course codes from CourseList.csv
-    with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv") as course_file:
-        reader = csv.reader(course_file)
-        courseCodes = [row[0] for row in reader]
+    # Read course codes from mySQL database
+    courseCodes = fetchCourseCodes()
 
     courseCode_combo = ttk.Combobox(courseCode_row,values=courseCodes,state="readonly")
     courseCode_combo.pack(side=tk.LEFT,fill=tk.X)
@@ -289,20 +376,15 @@ def deleteStudent(): #this function enables the user to remove a selected studen
 
     studentDatabase.delete(selectedStudent) # this enables the user to delete a selected item or student from the student database treeview
 
-    with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv") as student_file:
-        reader = csv.reader(student_file)
-        students=list(reader)
-    
-    for student in students:
-        if student[:2]==values[:2]:
-            students.remove(student)
-            break
+    connection = connectToDatabase()
+    cursor = connection.cursor()
 
-    with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv", "w", newline='') as student_file:
-        writer = csv.writer(student_file)
-        for student in students:
-             writer.writerow(student)
+    query = "DELETE FROM students WHERE idNum = %s"
+    cursor.execute(query, (values[3],))
 
+    connection.commit()
+    cursor.close()
+    connection.close()
 
     messagebox.showinfo("Student Deleted", "Student deleted successfully!")
 
@@ -349,11 +431,16 @@ def editStudent():
     yearLevel_entry.grid(row=3, column=1, padx=5, pady=5)
 
 
-    courseCodes=[]
-    with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv") as course_file:
-        reader = csv.reader(course_file)
-        for row in reader:
-            courseCodes.append(row[0])
+    # Get course codes from MySQL database
+    connection = connectToDatabase()
+    cursor = connection.cursor()
+
+    query = "SELECT courseCode FROM courses"
+    cursor.execute(query)
+    courseCodes = [row[0] for row in cursor.fetchall()]
+
+    cursor.close()
+    connection.close()
 
     Label(editStudent_window, text="Course Code: ").grid(row=5, column=0, padx=5, pady=5)
     courseCode_entry = ttk.Combobox(editStudent_window,values=courseCodes,state="readonly")
@@ -391,13 +478,18 @@ def editStudent():
             messagebox.showerror("Invalid ID Number", "ID number must be in YYYY-NNNN format.")
             return
 
-        studentDatabase.item(selectedStudent,values=updatedDetails) # updates the student data in treeview
+        # Update the student information in mySQL database
+        connection = connectToDatabase()
+        cursor = connection.cursor()
 
-        with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv", "w", newline="") as student_file:
-            writer = csv.writer(student_file)
-            for child in studentDatabase.get_children():
-                values = studentDatabase.item(child, "values")
-                writer.writerow(values)
+        query = "UPDATE students SET lastName=%s, firstName=%s, sex=%s, idNum=%s, yearLevel=%s, courseCode=%s, status=%s"
+        cursor.execute(query, updatedDetails)
+
+        connection.commit()
+        cursor.close()
+        connection.close()
+
+        studentDatabase.item(selectedStudent,values=updatedDetails) # updates the student data in treeview
 
         messagebox.showinfo("Edit Student Success", "Student information updated successfully!")
         editStudent_window.destroy()
@@ -438,22 +530,6 @@ def editStudent():
     font=('Arial', 12, 'bold'),
     command=cancelChanges)
     cancelButton.grid(row=7, column=0, columnspan=2, padx=70, pady=2)
-
-    # Validates the course code input if it exists or not
-    with open('CourseList.csv', 'r') as course_file:
-        reader = csv.reader(course_file) #reads the CourseList.csv file
-        courses = [row[0] for row in reader]
-
-    if courseCode_entry.get() in courses: #checks whether user input of the student's course is found from the course list (valid)
-        print(f"Course Name: {courseCode_entry.get()}")
-        return
-    else: 
-        if courseCode_entry.get() == '': #if course input is empty
-            return ''
-        else:
-            messagebox.showerror("Unvailable Course!",'Course Not Available! Please try again.')   
-            print ('Unenrolled')
-            return
         
 def clearHighlights():
 # Removes the highlight tag from all students in the treeview
@@ -471,30 +547,23 @@ def searchStudent():
         messagebox.showerror("Error","Search input must not be empty.")
         return
     
-    # Gets the selected column to search
-    searchColumn = searchStudent_category.get()
-    
     matchingStudents = []
     # Checks if the search input matches any value in the selected column of the treeview
     for student in studentDatabase.get_children():
-        if searchColumn == "Last Name":
-            lastName = studentDatabase.set(student, 1) # makes sure that it only detects items within that certain column
-            if searchInput.lower() in lastName.lower():
-                matchingStudents.append(student) # add the student to the list of matching students
-        elif searchColumn == "ID Number":
             idNum = studentDatabase.set(student, 4)
             if searchInput.lower() in idNum:
                 studentDatabase.tag_configure('highlight', background='yellow') # selects the student with the matching search input
                 studentDatabase.item(student, tags=('highlight'))
                 studentDatabase.see(student) # brings the matching student into view
                 break
+    else:
+        messagebox.showinfo("Student not found","Oops! Student not found in the list.")
+
     if matchingStudents: # if there are any matching students
         for student in matchingStudents:
             studentDatabase.tag_configure('highlight', background='yellow')
             studentDatabase.item(student, tags=('highlight'))
             studentDatabase.see(student)
-    else:
-        messagebox.showinfo("Student not found","Oops! Student not found in the list.")
 
 ############################################################
 def viewCoursesPage():
@@ -517,17 +586,13 @@ def viewCoursesPage():
     courseDatabase.heading(1, text="Course Code")
     courseDatabase.heading(2, text="Course Name")
 
-    with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv") as course_file:
-        reader = csv.reader(course_file)
-        for row in reader:
-            courseDatabase.insert("", "end", values=row)
+    readCourses()
 
     courseDatabase.pack(fill="both", expand=True)
 
 # ---------------------------- F U N C T I O N S ------------------------- #
     def addCourse():
 
-        # ----------------- F U N C T I O N S ----------------------------- #
         def saveCourse():
 
             newCourseCode = addCourseCode.get().upper()
@@ -537,18 +602,25 @@ def viewCoursesPage():
                 messagebox.showerror("Error", "Please fill in both Course Code and Course Name fields.")
                 return
 
-            with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv") as course_file: #read existing courses in csv file to check for any duplicates before adding new course
-                reader = csv.reader(course_file)
-                courses = [row for row in reader]
+            connection = connectToDatabase()
+            cursor = connection.cursor()
 
-            if [newCourseCode,newCourseName] not in courses:
-                courseDatabase.insert("","end",values=(newCourseCode,newCourseName)) #displays the newly added course to treeview
-                with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv", "a", newline='') as course_file: # writes the newly added course to the CourseList or CSV file
-                    writer = csv.writer(course_file)
-                    writer.writerow([newCourseCode,newCourseName])
-                    messagebox.showinfo("Course Added","New Course Added Successfully!")
+            query = "SELECT * FROM courses WHERE courseCode = %s"
+            cursor.execute(query, (newCourseCode,))
+            courses = cursor.fetchone()
+
+            if courses is None:
+                query = "INSERT INTO courses (courseCode, courseName) VALUES (%s, %s)"
+                cursor.execute(query, (newCourseCode, newCourseName))
+                connection.commit()
+                messagebox.showinfo("Course Added","New Course Added Successfully!")
             else:
                 messagebox.showinfo("Course Duplicate","Course already exists in the list. No duplicates allowed.")
+
+            refreshCourses()
+
+            cursor.close()
+            connection.close()
 
             addCourse_window.destroy()
 
@@ -604,6 +676,18 @@ def viewCoursesPage():
 
 
     def deleteCourse():
+       
+       def unenrollStudents(courseCode):
+           
+        connection = connectToDatabase()
+        cursor = connection.cursor()
+
+        query = "UPDATE students SET courseCode = '', status = 'Unenrolled' WHERE courseCode = %s"
+        cursor.execute(query, (courseCode,))
+
+        connection.commit()
+        cursor.close()
+        connection.close()
 
        selectedCourse = courseDatabase.selection()
 
@@ -616,41 +700,29 @@ def viewCoursesPage():
             return
 
        # Get the course code of the selected course
-       course_values = courseDatabase.item(selectedCourse, "values")
-       course_code = course_values[0]
+       courseValues = courseDatabase.item(selectedCourse, "values")
+       courseCode = courseValues[0]
 
        # Delete the course from the treeview
        courseDatabase.delete(selectedCourse)
 
-       # Remove the course from the CourseList.csv file
-       with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv") as course_file:
-            courses = list(csv.reader(course_file))
+       # Remove the course from the MySQL database
+       connection = connectToDatabase()
+       cursor = connection.cursor()
 
-       with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv", "w", newline='') as course_file:
-            writer = csv.writer(course_file)
-            for course in courses:
-                if course[0] != course_code:
-                    writer.writerow(course)
+       query = "DELETE FROM courses WHERE courseCode = %s"
+       cursor.execute(query, (courseCode,))
+
+       connection.commit()
+       cursor.close()
+       connection.close()
 
        # Unenroll students who are enrolled in the deleted course
-       with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv") as student_file:
-            reader = csv.reader(student_file)
-            students = list(reader)
-
-       updatedStudents = []
-       for student in students:
-            if student[5] == course_code:  # Check if the student is enrolled in the deleted course
-                student[5] = ''  # Unenroll the student
-                student[6] = "Enrolled"  if student[5] else "Unenrolled"  # Update the student's enrollment status
-            updatedStudents.append(student)
-
-       # Write the updated student list back to the StudentList.csv file
-       with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\StudentList.csv", "w", newline='') as student_file:
-            writer = csv.writer(student_file)
-            for student in updatedStudents:
-                writer.writerow(student)
+       unenrollStudents(courseCode)
 
        messagebox.showinfo("Course Deleted", "Course deleted successfully!")
+
+       refreshStudents()
 
 
     def editCourse():
@@ -689,15 +761,21 @@ def viewCoursesPage():
                 courseName.get().upper(),
             ]
 
+            # Update course details in mySQL database
+
+            connection = connectToDatabase()
+            cursor = connection.cursor()
+            query = "UPDATE courses SET courseCode = %s, courseName = %s WHERE courseCode = %s"
+            cursor.execute(query, (updatedDetails[0], updatedDetails[1], currentCourseDetails[0]))
+            connection.commit()
+            cursor.close()
+            connection.close()
+
             courseDatabase.item(selectedCourse,values=updatedDetails) # updates the course data in treeview
+            refreshCourses()
+            refreshStudents()
 
-            with open(r"C:\Users\Acer\OneDrive\Desktop\Student Information System\CourseList.csv", "w", newline="") as course_file:
-                writer = csv.writer(course_file)
-                for child in courseDatabase.get_children():
-                    values = courseDatabase.item(child, "values")
-                    writer.writerow(values)
-
-            messagebox.showinfo("Edit Student Success", "Student information updated successfully!")
+            messagebox.showinfo("Edit Course Success", "Updated successfully!")
             editCourse_window.destroy()
 
         def cancelChanges():
